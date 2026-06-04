@@ -1,54 +1,57 @@
-Your roadmap is correct at a high level, but it mixes three different abstraction layers. That’s the problem. You don’t need new phases—you need a **single architecture that already supports all three phases from day one**.
+Your roadmap should describe the system you are already building, not three separate systems. The clean way to do that is to treat the app as one monorepo with a thin client mediator and one modular backend.
 
 ---
 
-# 1. What actually changes
-
-Nothing “new” is added later if you design properly.
-
-You are not building:
-
-* Phase 1 app
-* then MCP app
-* then AI agent app
+# 1. Current architecture
 
 You are building:
 
-> one system with extension points
-
----
-
-# 2. Correct architecture mapping
-
-## Core system (must exist first)
+> one product with a single frontend, a single API, and clear extension points
 
 ```txt id="core1"
-Next.js (UI)
-Laravel (Modular monolith API)
-PostgreSQL (data)
-Redis (cache + queues)
+apps/web   -> Next.js UI
+apps/api   -> Laravel modular monolith API
+PostgreSQL -> primary data store
+Redis      -> cache, queues, async work
+Axios      -> request mediator between web and api
 ```
 
-This already supports:
-
-* writing workflows
-* autosave
-* comments
-* AI calls
-* drafts
-* versioning
+Axios is the client-side mediator. The frontend talks to Laravel through a shared HTTP layer instead of calling endpoints ad hoc from every component.
 
 ---
 
-## Now map your phases onto modules (not new systems)
+# 2. What the roadmap should represent
+
+The roadmap is not a sequence of separate architectures. It is a layered product plan:
+
+```txt id="layers"
+Layer 1: Core domain
+- documents
+- users
+- drafts
+- comments
+- revisions
+
+Layer 2: API integration
+- Axios client
+- Laravel endpoints
+- validation and auth
+- request/response mapping
+
+Layer 3: Workflow and intelligence
+- AI actions
+- MCP-style tool adapters
+- agent workflows
+- queue-driven automation
+```
 
 ---
 
-# 3. Phase 1 = Core Product Layer
+# 3. Phase 1 = Core product layer
 
-This is not “setup phase”. This is the product.
+This is the actual writing app.
 
-### Backend modules:
+### Backend modules
 
 ```txt id="p1"
 Modules/
@@ -59,7 +62,7 @@ Modules/
   Revisions/
 ```
 
-### Frontend:
+### Frontend routes
 
 ```txt id="p1f"
 Next.js
@@ -68,19 +71,25 @@ Next.js
   /dashboard
 ```
 
-### Result:
+### Communication pattern
 
-You already have a working writing platform.
+The UI reads and writes through Axios, which handles the API boundary consistently.
+
+Example usage:
+
+```txt id="axios1"
+UI action -> Axios request -> Laravel controller -> module service -> database
+```
+
+### Result
+
+You already have a usable writing platform with a clean client-server split.
 
 ---
 
-# 4. Phase 2 (MCP) = Integration layer, NOT a new phase system
+# 4. Phase 2 = Tool layer inside the API
 
-MCP is not architecture. It is a **tool interface layer**.
-
-So you do NOT build a new system.
-
-You add:
+MCP should not be treated as a separate system. In this roadmap, it is a tool interface pattern inside the Laravel API.
 
 ```txt id="mcp1"
 Modules/AI/
@@ -90,39 +99,25 @@ Modules/AI/
     Adapters/
 ```
 
-### What MCP becomes in your system:
+### What this means
 
-* a plugin interface for AI tools
-* a standardized way to call external capabilities
-* just another service inside Laravel
+* AI capabilities are exposed as backend services
+* external tools are wrapped in adapters
+* the frontend still goes through Axios and Laravel endpoints
 
----
-
-### Example MCP use case (correct interpretation)
-
-* “rewrite paragraph”
-* “summarize document”
-* “generate outline”
-
-These are just API endpoints:
+### Example endpoint
 
 ```txt id="mcp2"
-POST /ai/mcp/run
+POST /api/ai/run
 ```
 
-No new infrastructure needed.
+That endpoint can trigger a rewrite, summarize a document, generate an outline, or call any supported tool without changing the frontend architecture.
 
 ---
 
-# 5. Phase 3 (Agents) = Workflow layer on top of MCP
+# 5. Phase 3 = Workflow layer on top of the API
 
-Agents are NOT separate apps.
-
-They are:
-
-> orchestrated sequences of backend actions
-
-Inside Laravel:
+Agents are not separate apps. They are backend workflows that use the existing modules, queues, and tool adapters.
 
 ```txt id="agent1"
 Modules/AI/
@@ -131,116 +126,70 @@ Modules/AI/
     ReviewAgent.php
 ```
 
-They use:
+### What they use
 
-* MCP tools
-* database state
-* Redis queue workers
+* Laravel services and module state
+* Redis queues and background jobs
+* MCP-style tool adapters
+* stored drafts and revisions
 
----
-
-### Example agent flow:
+### Example flow
 
 ```txt id="agentflow"
-User writes text
+User edits text
    ↓
-Draft saved
+Draft saved through Axios
    ↓
-Agent triggered (queue)
+Laravel dispatches a queued job
    ↓
-MCP tool calls:
+Agent runs tool calls
    - grammar check
    - rewrite
-   - tone adjust
+   - tone adjustment
    ↓
-Store suggestions
+Suggestions are stored
    ↓
-Frontend displays options
+Frontend fetches results through Axios
 ```
 
 ---
 
-# 6. What actually changes in your roadmap
+# 6. What changes in implementation
 
-### OLD thinking (wrong separation)
+### Do
 
-* build app
-* then add MCP system
-* then add AI system
+* keep the monorepo split between `apps/web` and `apps/api`
+* use Axios as the single HTTP mediator in the frontend
+* keep Laravel modular from the start
+* introduce Redis and queues early
+* isolate AI logic in a dedicated module
 
-### NEW reality (correct)
+### Do not
 
-You build:
-
-## One system with 3 layers
-
-```txt id="layers"
-Layer 1: Core Domain
-- documents
-- users
-- drafts
-
-Layer 2: Tool Layer (MCP)
-- AI functions
-- external integrations
-
-Layer 3: Orchestration Layer (Agents)
-- workflows
-- automation
-- suggestions
-```
+* build separate MCP infrastructure
+* split AI into a separate backend
+* let components call Laravel endpoints directly in inconsistent ways
+* redesign the system for each roadmap phase
 
 ---
 
-# 7. Key design correction
-
-## MCP is NOT a phase
-
-It is:
-
-> a standardized function interface inside your backend
-
-## Agents are NOT a system
-
-They are:
-
-> background workflows using existing modules
-
----
-
-# 8. What changes in your implementation decisions
-
-### You DO:
-
-* design modular Laravel from start
-* add Redis + queues early
-* isolate AI module early
-* define clean service boundaries
-
-### You DO NOT:
-
-* build separate MCP server
-* build separate AI backend
-* rebuild architecture per phase
-
----
-
-# 9. Final structure after correction
+# 7. Final structure
 
 ```txt id="final"
 Monorepo
 
 apps/
   web (Next.js editor UI)
-
   api (Laravel modular monolith)
     Modules/
       Documents/
+      Users/
+      Comments/
+      Drafts/
+      Revisions/
       AI/
         MCP/
         Agents/
-      Users/
-      Drafts/
 
 infra/
   docker/
@@ -250,12 +199,8 @@ infra/
 
 ---
 
-# 10. Core insight
+# 8. Core insight
 
-Your roadmap is not sequential.
+The roadmap is not sequential. It is one architecture that expands by modules.
 
-It is **layered expansion of one backend**.
-
-If you treat MCP and Agents as separate phases, you will rebuild your system multiple times.
-
-If you treat them as modules inside Laravel, you never rebuild anything—you only extend.
+Axios is the mediation layer between the frontend and the API. MCP and agents are implementation layers inside Laravel, not separate systems that require a rebuild later.

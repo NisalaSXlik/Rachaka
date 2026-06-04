@@ -3,23 +3,33 @@
 Rachaka is a simple writing application built with:
 
 - **Next.js** for the frontend
-- **NestJS** for the backend
+- **Laravel** for the backend
+- **Axios** as the shared HTTP mediator between the frontend and backend
+- **PostgreSQL** for primary data
+- **Redis** for cache, queues, and background work
 
-It also includes a basic learning skeleton for:
+It also includes a modular learning skeleton for:
 
-- **MCP (Model Context Protocol)** integrations
-- **ML/AI agent experimentation**
+- **MCP (Model Context Protocol)** tool adapters inside the API
+- **ML/AI agent workflows** built on top of the existing backend modules
 
-## Basic Skeleton
+## Current Architecture
 
 ```text
 Rachaka/
 ├── apps/
-│   ├── frontend/      # Next.js app skeleton
-│   └── backend/       # NestJS app skeleton
+│   ├── web/           # Next.js app
+│   └── api/           # Laravel modular monolith API
 ├── agents/
 │   ├── mcp/           # MCP learning and integration notes
 │   └── ml-ai/         # ML/AI agent learning and experiments
 └── docs/
-    └── roadmap.md     # learning path while building the project
+    └── roadmap.md     # layered architecture and implementation roadmap
 ```
+
+## How the stack fits together
+
+- The Next.js app handles the editor and writing experience.
+- Axios is the single request layer used by the frontend to talk to the API.
+- Laravel owns the domain modules, validation, persistence, and background jobs.
+- MCP and agent logic live inside the API as extension layers, not separate apps.
